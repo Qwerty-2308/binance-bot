@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+
 const initialForm = {
   symbol: "BTCUSDT",
   side: "BUY",
@@ -11,15 +13,6 @@ const initialForm = {
 
 export default function App() {
   const [form, setForm] = useState(initialForm);
-  const [credentialsForm, setCredentialsForm] = useState({
-    apiKey: "",
-    apiSecret: "",
-  });
-  const [credentials, setCredentials] = useState({
-    loading: false,
-    error: "",
-    success: "",
-  });
   const [health, setHealth] = useState({
     loading: true,
     error: "",
@@ -42,7 +35,7 @@ export default function App() {
     setHealth({ loading: true, error: "", data: null });
 
     try {
-      const response = await fetch("/api/health");
+      const response = await fetch(`${API_BASE_URL}/api/health`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -53,43 +46,8 @@ export default function App() {
     } catch (error) {
       setHealth({
         loading: false,
-        error: error instanceof Error ? error.message : "Unable to reach the Python API.",
+        error: error instanceof Error ? error.message : "Unable to reach the backend API.",
         data: null,
-      });
-    }
-  }
-
-  async function handleCredentialsSubmit(event) {
-    event.preventDefault();
-    setCredentials({ loading: true, error: "", success: "" });
-
-    try {
-      const response = await fetch("/api/session/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: credentialsForm.apiKey,
-          api_secret: credentialsForm.apiSecret,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.detail || "Unable to save credentials.");
-      }
-
-      setCredentials({
-        loading: false,
-        error: "",
-        success: "Credentials saved for this backend session.",
-      });
-      setCredentialsForm({ apiKey: "", apiSecret: "" });
-      void loadHealth();
-    } catch (error) {
-      setCredentials({
-        loading: false,
-        error: error instanceof Error ? error.message : "Unable to save credentials.",
-        success: "",
       });
     }
   }
@@ -120,7 +78,7 @@ export default function App() {
     };
 
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -146,6 +104,7 @@ export default function App() {
 
   const response = submission.data?.response;
   const credentialsConfigured = Boolean(health.data?.credentialsConfigured);
+  const backendAvailable = !health.loading && !health.error;
 
   return (
     <main className="shell">
@@ -178,53 +137,23 @@ export default function App() {
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Order Ticket</p>
-              <h2>Place a testnet order</h2>
+              <h2>Place an order</h2>
             </div>
             <span className={`pill ${form.orderType === "LIMIT" ? "pill-warm" : "pill-cool"}`}>
               {form.orderType}
             </span>
           </div>
 
-          {!credentialsConfigured ? (
-            <>
-              <div className="message error-message">
-                Binance credentials are missing on the backend. Add your testnet API key/secret below (stored in
-                memory only).
-              </div>
-              <form className="order-form" onSubmit={handleCredentialsSubmit}>
-                <label className="wide">
-                  API Key
-                  <input
-                    name="apiKey"
-                    value={credentialsForm.apiKey}
-                    onChange={(e) =>
-                      setCredentialsForm((current) => ({ ...current, apiKey: e.target.value }))
-                    }
-                    placeholder="Binance Futures Testnet API Key"
-                    autoComplete="off"
-                  />
-                </label>
-                <label className="wide">
-                  API Secret
-                  <input
-                    name="apiSecret"
-                    value={credentialsForm.apiSecret}
-                    onChange={(e) =>
-                      setCredentialsForm((current) => ({ ...current, apiSecret: e.target.value }))
-                    }
-                    placeholder="Binance Futures Testnet API Secret"
-                    autoComplete="off"
-                  />
-                </label>
-                <button className="submit-button" type="submit" disabled={credentials.loading}>
-                  {credentials.loading ? "Saving..." : "Save credentials"}
-                </button>
-              </form>
-              {credentials.error ? <div className="message error-message">{credentials.error}</div> : null}
-              {credentials.success ? (
-                <div className="message empty-state">{credentials.success}</div>
-              ) : null}
-            </>
+          {!backendAvailable ? (
+            <div className="message error-message">
+              Backend unavailable. If you deployed this UI to Netlify, set `VITE_API_BASE_URL` to your deployed
+              backend (FastAPI) URL.
+            </div>
+          ) : !credentialsConfigured ? (
+            <div className="message error-message">
+              Binance credentials are missing on the backend. Set `BINANCE_API_KEY` and `BINANCE_API_SECRET` in
+              the backend environment and restart it.
+            </div>
           ) : (
             <>
               <form className="order-form" onSubmit={handleSubmit}>
