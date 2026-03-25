@@ -50,6 +50,15 @@ class CredentialsPayload(BaseModel):
     api_secret: str = Field(..., min_length=5, examples=["your_testnet_api_secret"])
 
 
+@app.get("/")
+def root() -> dict[str, object]:
+    return {
+        "message": "Binance Futures Testnet Trading Bot API is running.",
+        "health": "/api/health",
+        "docs": "/docs",
+    }
+
+
 @app.get("/api/health")
 def health() -> dict[str, object]:
     env_configured = bool(os.getenv("BINANCE_API_KEY") and os.getenv("BINANCE_API_SECRET"))
